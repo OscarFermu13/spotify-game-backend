@@ -5,6 +5,7 @@ const { PORT } = require('./config');
 
 const authRoutes = require('./routes/auth');
 const playlistRoutes = require('./routes/playlist');
+const userRoutes = require('./routes/user');
 const gameRoutes = require('./routes/game');
 
 const app = express();
@@ -14,6 +15,7 @@ app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
 
 app.use('/auth', authRoutes);
 app.use('/api', playlistRoutes);
+app.use('/api/me', userRoutes);
 app.use('/api/game', gameRoutes);
 
 module.exports = app;
