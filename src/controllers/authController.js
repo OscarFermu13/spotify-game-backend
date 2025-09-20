@@ -12,7 +12,8 @@ async function login(req, res) {
     'playlist-read-private',
     'playlist-read-collaborative',
     'user-modify-playback-state',
-    'user-read-playback-state'
+    'user-read-playback-state',
+    'user-read-currently-playing'  
   ].join(' ');
   const state = Math.random().toString(36).substring(2, 15);
   const url =

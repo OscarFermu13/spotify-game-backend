@@ -1,10 +1,10 @@
 const axios = require('axios');
-const refreshAccessTokenIfNeeded = require('../services/spotify');
+const { refreshAccessToken } = require('../services/spotify');
 
 // ---------- GET /api/me/playlists ----------
 async function getUserPlaylists(req, res) {
   let accessToken = req.user.accessToken;
-  if (!accessToken) accessToken = await refreshAccessTokenIfNeeded(req.user);
+  if (!accessToken) accessToken = await refreshAccessToken(req.user);
 
   try {
     const resp = await axios.get(
@@ -23,7 +23,7 @@ async function getAccessToken(req, res) {
   try {
     let accessToken = req.user.accessToken;
     if (!accessToken) {
-      accessToken = await refreshAccessTokenIfNeeded(req.user);
+      accessToken = await refreshAccessToken(req.user);
     }
     res.json({ accessToken });
   } catch (e) {

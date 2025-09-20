@@ -1,6 +1,6 @@
 const axios = require('axios');
-const refreshAccessTokenIfNeeded = require('../services/spotify');
-const parsePlaylistId = require('../utils/helpers').parsePlaylistId;
+const { refreshAccessToken } = require('../services/spotify');
+const { parsePlaylistId } = require('../utils/helpers');
 
 // ---------- GET /api/playlist ----------
 async function getPlaylistTracks(req, res) {
@@ -11,7 +11,7 @@ async function getPlaylistTracks(req, res) {
   if (!playlistId) return res.status(400).json({ error: 'Invalid playlist url' });
 
   let accessToken = req.user.accessToken;
-  if (!accessToken) accessToken = await refreshAccessTokenIfNeeded(req.user);
+  if (!accessToken) accessToken = await refreshAccessToken(req.user);
 
   try {
     const resp = await axios.get(

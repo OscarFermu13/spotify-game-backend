@@ -1,6 +1,5 @@
 const { verifyJwt } = require('../utils/jwt');
-const { PrismaClient } = require('@prisma/client');
-const prisma = new PrismaClient();
+const prisma = require('../prisma/client');
 
 async function authMiddleware(req, res, next) {
   const token = req.headers.authorization?.split(' ')[1] || req.query.token;

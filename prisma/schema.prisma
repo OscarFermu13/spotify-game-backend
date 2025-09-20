@@ -8,32 +8,61 @@ datasource db {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
+  id           String   @id @default(cuid())
   spotifyId    String   @unique
   displayName  String?
   accessToken  String?
   refreshToken String?
-  createdAt    DateTime @default(now())
-  Game         Game[]
+
+  games      Game[]
+  sessions   GameSession[] @relation("SessionOwner")
+  createdAt  DateTime @default(now())
+}
+
+model GameSession {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  playlistUrl String
+  isPublic    Boolean  @default(true)
+  ownerId     String
+  owner       User     @relation("SessionOwner", fields: [ownerId], references: [id])
+
+  tracks  SessionTrack[]
+  games   Game[]
+}
+
+model SessionTrack {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     GameSession @relation(fields: [sessionId], references: [id])
+
+  order       Int
+  trackId     String
+  name        String
+  artists     String          
+  uri         String
+  albumJson   Json            
+  durationMs  Int
 }
 
 model Game {
-  id        Int         @id @default(autoincrement())
-  userId    Int
-  createdAt DateTime    @default(now())
-  totalTime Int? // segundos
-  user      User        @relation(fields: [userId], references: [id])
-  GameTrack GameTrack[]
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  sessionId   String
+  session     GameSession @relation(fields: [sessionId], references: [id])
+  totalTime   Float?
+  completed   Boolean  @default(false)
+
+  tracks      GameTrack[]
 }
 
 model GameTrack {
-  id        Int     @id @default(autoincrement())
-  gameId    Int
-  trackId   String
-  name      String
-  artist    String
-  guessed   Boolean @default(false)
-  timeTaken Int? // segundos
-  skipped   Boolean @default(false)
+  id        String  @id @default(cuid())
+  gameId    String
   game      Game    @relation(fields: [gameId], references: [id])
+  trackId   String
+  guessed   Boolean
+  timeTaken Float
 }
