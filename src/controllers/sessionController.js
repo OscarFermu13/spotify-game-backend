@@ -1,5 +1,6 @@
 const { refreshAccessToken, fetchPlaylistTracksOrdered } = require('../services/spotify');
 const { parsePlaylistId } = require('../utils/helpers');
+const { FRONTEND_URL } = require('../config');
 const prisma = require('../prisma/client');
 
 // ---------- POST /api/session/create ----------
@@ -41,7 +42,7 @@ async function createSession(req, res) {
             include: { tracks: { orderBy: { order: 'asc' } } }
         });
 
-        const shareUrl = `${FRONT_URL}/session/${session.id}`;
+        const shareUrl = `${FRONTEND_URL}/session/${session.id}`;
         return res.json({ sessionId: session.id, shareUrl, tracks: session.tracks });
     } catch (e) {
         console.error('createSession error:', e.response?.data || e.message);
