@@ -1,11 +1,12 @@
 const { refreshAccessToken, fetchPlaylistTracksOrdered } = require('../services/spotify');
 const { parsePlaylistId } = require('../utils/helpers');
+const { FRONTEND_URL } = require('../config');
 const prisma = require('../prisma/client');
 
 // ---------- POST /api/session/create ----------
 async function createSession(req, res) {
     try {
-        const { playlistUrl, isPublic = true, count = 5 } = req.body;
+        const { playlistUrl, isPublic = true, count = 5, penalty = 5 } = req.body;
         if (!playlistUrl) return res.status(400).json({ error: 'Missing playlistUrl' });
 
         // Access token válido del usuario creador
@@ -25,6 +26,7 @@ async function createSession(req, res) {
             data: {
                 playlistUrl,
                 isPublic,
+                penalty,
                 ownerId: req.user.id,
                 tracks: {
                     create: selected.map((t, idx) => ({
@@ -41,7 +43,7 @@ async function createSession(req, res) {
             include: { tracks: { orderBy: { order: 'asc' } } }
         });
 
-        const shareUrl = `${FRONT_URL}/session/${session.id}`;
+        const shareUrl = `${FRONTEND_URL}/session/${session.id}`;
         return res.json({ sessionId: session.id, shareUrl, tracks: session.tracks });
     } catch (e) {
         console.error('createSession error:', e.response?.data || e.message);
@@ -49,7 +51,7 @@ async function createSession(req, res) {
     }
 };
 
-// ---------- POST /api/session/:id ----------
+// ---------- GET /api/session/:id ----------
 async function getSession(req, res) {
     try {
         const { id } = req.params;
@@ -62,6 +64,7 @@ async function getSession(req, res) {
             id: session.id,
             playlistUrl: session.playlistUrl,
             isPublic: session.isPublic,
+            penalty: session.penalty,
             owner: { id: session.ownerId, displayName: session.owner?.displayName || null },
             tracks: session.tracks
         });

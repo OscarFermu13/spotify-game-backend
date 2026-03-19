@@ -2,7 +2,7 @@ const { verifyJwt } = require('../utils/jwt');
 const prisma = require('../prisma/client');
 
 async function authMiddleware(req, res, next) {
-  const token = req.headers.authorization?.split(' ')[1] || req.query.token;
+  const token = req.cookies?.jwt || req.headers.authorization?.split(' ')[1] || req.query.token;
   if (!token) return res.status(401).json({ error: 'No token' });
 
   try {

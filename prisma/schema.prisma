@@ -24,6 +24,7 @@ model GameSession {
   createdAt   DateTime @default(now())
   playlistUrl String
   isPublic    Boolean  @default(true)
+  penalty     Int      @default(5)
   ownerId     String
   owner       User     @relation("SessionOwner", fields: [ownerId], references: [id])
 

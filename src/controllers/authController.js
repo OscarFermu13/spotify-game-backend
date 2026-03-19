@@ -60,7 +60,15 @@ async function callback(req, res) {
     });
 
     const token = makeJwt({ userId: user.id, spotifyId });
-    res.redirect(`${FRONTEND_URL}/?token=${token}`);
+
+    res.cookie('jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true si usas https
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+    });
+
+    res.redirect(FRONTEND_URL);
   } catch (err) {
     console.error(err.response?.data || err.message);
     res.status(500).send('Auth error');

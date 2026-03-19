@@ -6,5 +6,5 @@ module.exports = {
   SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
   SPOTIFY_REDIRECT_URI: process.env.SPOTIFY_REDIRECT_URI,
   JWT_SECRET: process.env.JWT_SECRET,
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173'
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://127.0.0.1:5173'
 };
