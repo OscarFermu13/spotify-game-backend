@@ -1,11 +1,11 @@
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
-const { getSessionLeaderboard, getGlobalLeaderboard, getUserLeaderboard } = require('../controllers/leaderboardController');
-
+const { getGlobalLeaderboard, getSessionLeaderboard, getPersonalLeaderboard } = require('../controllers/leaderboardController');
+ 
 const router = express.Router();
-
-router.get("/session/:id", authMiddleware, getSessionLeaderboard);
-router.get("/global", authMiddleware, getGlobalLeaderboard);
-router.get("/user/:id", authMiddleware, getUserLeaderboard);
+ 
+router.get('/global', authMiddleware, getGlobalLeaderboard);
+router.get('/session/:id', authMiddleware, getSessionLeaderboard);
+router.get('/me', authMiddleware, getPersonalLeaderboard);
 
 module.exports = router;
