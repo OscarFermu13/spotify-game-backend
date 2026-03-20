@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { makeJwt } = require('../utils/jwt');
+const { encrypt } = require('../utils/tokenCrypto');
 const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, FRONTEND_URL } = require('../config');
 const prisma = require('../prisma/client');
 
@@ -13,9 +14,18 @@ async function login(req, res) {
     'playlist-read-collaborative',
     'user-modify-playback-state',
     'user-read-playback-state',
-    'user-read-currently-playing'  
+    'user-read-currently-playing'
   ].join(' ');
-  const state = Math.random().toString(36).substring(2, 15);
+
+  const state = require('crypto').randomBytes(16).toString('hex');
+
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'Lax',
+    maxAge: 10 * 60 * 1000,
+  });
+
   const url =
     'https://accounts.spotify.com/authorize' +
     '?response_type=code' +
@@ -23,13 +33,22 @@ async function login(req, res) {
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}` +
     `&state=${encodeURIComponent(state)}`;
+ 
   res.redirect(url);
-};
+}
 
 // ---------- GET /auth/callback ----------
 async function callback(req, res) {
-  const code = req.query.code;
-  if (!code) return res.status(400).send('No code');
+  const { code, state: returnedState } = req.query;
+
+  const storedState = req.cookies?.oauth_state;
+  if (!returnedState || !storedState || returnedState !== storedState) {
+    return res.status(403).send('OAuth state mismatch. Possible CSRF attack.');
+  }
+ 
+  res.clearCookie('oauth_state');
+ 
+  if (!code) return res.status(400).send('No authorization code received');
 
   try {
     const tokenResp = await axios.post(
@@ -53,25 +72,37 @@ async function callback(req, res) {
     const spotifyId = me.data.id;
     const displayName = me.data.display_name || null;
 
+    const encryptedAccessToken = encrypt(access_token);
+    const encryptedRefreshToken = encrypt(refresh_token);
+
     const user = await prisma.user.upsert({
       where: { spotifyId },
-      update: { accessToken: access_token, refreshToken: refresh_token, displayName },
-      create: { spotifyId, accessToken: access_token, refreshToken: refresh_token, displayName }
+      update: {
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        displayName,
+      },
+      create: {
+        spotifyId,
+        accessToken: encryptedAccessToken,
+        refreshToken: encryptedRefreshToken,
+        displayName,
+      },
     });
 
     const token = makeJwt({ userId: user.id, spotifyId });
 
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production', // true si usas https
-      sameSite: 'lax',
-      maxAge: 7 * 24 * 60 * 60 * 1000 // 7 días
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'Lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
     });
 
     res.redirect(FRONTEND_URL);
   } catch (err) {
-    console.error(err.response?.data || err.message);
-    res.status(500).send('Auth error');
+    console.error('Auth callback error:', err.response?.data || err.message);
+    res.status(500).send('Authentication error');
   }
 };
 
