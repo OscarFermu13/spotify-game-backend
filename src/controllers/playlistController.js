@@ -1,6 +1,6 @@
 const axios = require('axios');
 const { refreshAccessToken } = require('../services/spotify');
-const { parsePlaylistId } = require('../utils/helpers');
+const { parsePlaylistId, fisherYatesShuffle } = require('../utils/helpers');
 
 // ---------- GET /api/playlist ----------
 async function getPlaylistTracks(req, res) {
@@ -11,7 +11,10 @@ async function getPlaylistTracks(req, res) {
   if (!playlistId) return res.status(400).json({ error: 'Invalid playlist url' });
 
   let accessToken = req.user.accessToken;
-  if (!accessToken) accessToken = await refreshAccessToken(req.user);
+  if (!accessToken) {
+    accessToken = await refreshAccessToken(req.user);
+    if (!accessToken) return res.status(401).json({ error: 'Could not refresh Spotify token' });
+  }
 
   try {
     const resp = await axios.get(
@@ -32,7 +35,7 @@ async function getPlaylistTracks(req, res) {
         duration_ms: t.duration_ms,
       }));
 
-    const shuffled = tracks.sort(() => Math.random() - 0.5).slice(0, Number(count));
+     const shuffled = fisherYatesShuffle(tracks).slice(0, Number(count));
 
     res.json({ tracks: shuffled });
   } catch (e) {
