@@ -1,6 +1,15 @@
 const axios = require('axios');
 const { refreshAccessToken } = require('../services/spotify');
 
+// ── GET /api/me ──────────────────────────────────────────────────────────────
+async function getMe(req, res) {
+  res.json({
+    id: req.user.id,
+    displayName: req.user.displayName || null,
+    spotifyId: req.user.spotifyId,
+  });
+}
+
 // ---------- GET /api/me/playlists ----------
 async function getUserPlaylists(req, res) {
   let accessToken = req.user.accessToken;
@@ -33,6 +42,7 @@ async function getAccessToken(req, res) {
 }
 
 module.exports = {
+  getMe,
   getUserPlaylists,
   getAccessToken
 };
