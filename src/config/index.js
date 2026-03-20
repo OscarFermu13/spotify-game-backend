@@ -1,4 +1,29 @@
+// src/config/index.js
 require('dotenv').config();
+
+const required = [
+  'SPOTIFY_CLIENT_ID',
+  'SPOTIFY_CLIENT_SECRET',
+  'SPOTIFY_REDIRECT_URI',
+  'JWT_SECRET',
+  'DATABASE_URL',
+  'TOKEN_ENCRYPTION_KEY',
+];
+
+const missing = required.filter((key) => !process.env[key]);
+if (missing.length > 0) {
+  throw new Error(
+    `Missing required environment variables:\n  ${missing.join('\n  ')}\n` +
+    'Check your .env file.'
+  );
+}
+
+if (process.env.TOKEN_ENCRYPTION_KEY.length !== 64) {
+  throw new Error(
+    'TOKEN_ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes). ' +
+    'Generate with: node -e "console.log(require(\'crypto\').randomBytes(32).toString(\'hex\'))"'
+  );
+}
 
 module.exports = {
   PORT: process.env.PORT || 4000,
@@ -6,5 +31,6 @@ module.exports = {
   SPOTIFY_CLIENT_SECRET: process.env.SPOTIFY_CLIENT_SECRET,
   SPOTIFY_REDIRECT_URI: process.env.SPOTIFY_REDIRECT_URI,
   JWT_SECRET: process.env.JWT_SECRET,
-  FRONTEND_URL: process.env.FRONTEND_URL || 'http://127.0.0.1:5173'
+  FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
+  TOKEN_ENCRYPTION_KEY: process.env.TOKEN_ENCRYPTION_KEY,
 };

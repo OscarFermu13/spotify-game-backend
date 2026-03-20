@@ -13,6 +13,10 @@ async function saveGame(req, res) {
       return res.status(404).json({ error: 'Game not found' });
     }
 
+    if (game.completed) {
+      return res.status(409).json({ error: 'Game already completed' });
+    }
+
     // Guardar detalle de tracks
     const toCreate = tracks.map(t => ({
       gameId,
