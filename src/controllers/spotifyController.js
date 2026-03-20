@@ -1,9 +1,13 @@
-const { refreshAccessToken } = require('../services/spotify');
 const axios = require('axios');
+const { refreshAccessToken } = require('../services/spotify');
 
 async function getValidToken(user) {
   const token = user.accessToken || await refreshAccessToken(user);
-  if (!token) throw Object.assign(new Error('No valid Spotify token'), { status: 401 });
+  if (!token) {
+    const err = new Error('No valid Spotify token');
+    err.status = 401;
+    throw err;
+  }
   return token;
 }
 
@@ -33,15 +37,19 @@ async function searchSong(req, res) {
 
 // ── PUT /api/spotify/play ────────────────────────────────────────────────────
 async function playSong(req, res) {
-  const { device_id, uris } = req.body;
+  const { device_id, uris, position_ms } = req.body;
   if (!device_id) return res.status(400).json({ error: 'Missing body param: device_id' });
   if (!Array.isArray(uris) || !uris.length) return res.status(400).json({ error: 'Missing body param: uris' });
-
+ 
   try {
     const accessToken = await getValidToken(req.user);
+    const body = { uris };
+    if (typeof position_ms === 'number' && position_ms >= 0) {
+      body.position_ms = position_ms;
+    }
     await axios.put(
       `https://api.spotify.com/v1/me/player/play?device_id=${device_id}`,
-      { uris },
+      body,
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
     res.sendStatus(204);
