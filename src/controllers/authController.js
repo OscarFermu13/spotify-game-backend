@@ -26,13 +26,16 @@ async function login(req, res) {
     maxAge: 10 * 60 * 1000,
   });
 
+  const showDialog = req.query.switch_account === 'true';
+
   const url =
     'https://accounts.spotify.com/authorize' +
     '?response_type=code' +
     `&client_id=${encodeURIComponent(SPOTIFY_CLIENT_ID)}` +
     `&scope=${encodeURIComponent(scopes)}` +
     `&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}` +
-    `&state=${encodeURIComponent(state)}`;
+    `&state=${encodeURIComponent(state)}` +
+    (showDialog ? '&show_dialog=true' : '');
  
   res.redirect(url);
 }
