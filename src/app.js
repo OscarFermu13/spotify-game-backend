@@ -12,6 +12,7 @@ const gameRoutes = require('./routes/game');
 const sessionRoutes = require('./routes/session');
 const leaderboardRoutes = require('./routes/leaderboard');
 const spotifyRoutes = require('./routes/spotify');
+const dailyRoutes = require('./routes/daily');
 
 const app = express();
 app.use(express.json());
@@ -55,6 +56,7 @@ app.use(globalLimiter);
 // ── Rutas ────────────────────────────────────────────────────────────────────
 app.use('/auth', authLimiter, authRoutes);
 app.use('/api/spotify', spotifyRoutes);
+app.use('/api/daily', dailyRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
 app.use('/api/game', gameWriteLimiter, gameRoutes);

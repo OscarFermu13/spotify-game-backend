@@ -86,6 +86,7 @@ async function getSessionLeaderboard(req, res) {
 
     res.json({
       sessionId: id,
+      playlistUrl: session.playlistUrl,
       trackCount: session.tracks.length,
       leaderboard,
     });

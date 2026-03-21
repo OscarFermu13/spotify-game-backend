@@ -7,7 +7,7 @@ const prisma = require('../prisma/client');
 // ── POST /api/session/create ─────────────────────────────────────────────────
 async function createSession(req, res) {
   try {
-    const { playlistUrl, isPublic = true, count = 5 } = req.body;
+    const { playlistUrl, isPublic = true, count = 5, penalty } = req.body;
     if (!playlistUrl) return res.status(400).json({ error: 'Missing playlistUrl' });
 
     let accessToken = req.user.accessToken;
@@ -29,6 +29,7 @@ async function createSession(req, res) {
         playlistUrl,
         isPublic,
         ownerId: req.user.id,
+        penalty,
         tracks: {
           create: selected.map((t, idx) => ({
             order: idx,
@@ -66,6 +67,7 @@ async function getSession(req, res) {
       id: session.id,
       playlistUrl: session.playlistUrl,
       isPublic: session.isPublic,
+      penalty: session.penalty,
       owner: { id: session.ownerId, displayName: session.owner?.displayName || null },
       tracks: session.tracks,
     });

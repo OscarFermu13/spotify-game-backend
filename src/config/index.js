@@ -8,6 +8,7 @@ const required = [
   'JWT_SECRET',
   'DATABASE_URL',
   'TOKEN_ENCRYPTION_KEY',
+  'CRON_SECRET',
 ];
 
 const missing = required.filter((key) => !process.env[key]);
@@ -33,4 +34,7 @@ module.exports = {
   JWT_SECRET: process.env.JWT_SECRET,
   FRONTEND_URL: process.env.FRONTEND_URL || 'http://localhost:5173',
   TOKEN_ENCRYPTION_KEY: process.env.TOKEN_ENCRYPTION_KEY,
+  DAILY_PLAYLIST_URL: process.env.DAILY_PLAYLIST_URL,
+  DAILY_TRACK_COUNT: parseInt(process.env.DAILY_TRACK_COUNT, 10) || 5,
+  CRON_SECRET: process.env.CRON_SECRET,
 };

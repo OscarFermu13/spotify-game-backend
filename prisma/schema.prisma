@@ -27,9 +27,12 @@ model GameSession {
   penalty     Int      @default(5)
   ownerId     String
   owner       User     @relation("SessionOwner", fields: [ownerId], references: [id])
+  source      String   @default("custom")
+  dailyDate   DateTime? @db.Date
+  tracks SessionTrack[]
+  games  Game[]
 
-  tracks  SessionTrack[]
-  games   Game[]
+  @@unique([dailyDate])
 }
 
 model SessionTrack {
