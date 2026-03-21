@@ -15,41 +15,50 @@ function todayUTC() {
 async function getDaily(req, res) {
   try {
     const today = todayUTC();
-
+ 
     let session = await prisma.gameSession.findUnique({
       where: { dailyDate: today },
       include: { tracks: { orderBy: { order: 'asc' } }, owner: true },
     });
-
+ 
     if (!session) {
+
       session = await generateDailySession(req.user, today);
     }
-
-    // Join or reuse existing game for this user
+ 
+    // Find any existing game for this user (completed or not)
     let game = await prisma.game.findFirst({
-      where: { sessionId: session.id, userId: req.user.id, completed: false },
+      where: { sessionId: session.id, userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
     });
+ 
+    const alreadyCompleted = game?.completed ?? false;
+    console.log('getDaily - userId:', req.user.id, 'sessionId:', session.id, 'gameId:', game?.id, 'alreadyCompleted:', alreadyCompleted);
+ 
+    // Only create a new game if the user has never joined this session
     if (!game) {
       game = await prisma.game.create({
         data: { sessionId: session.id, userId: req.user.id },
       });
     }
-
-    // Count how many users have played today
-    const playerCount = await prisma.game.count({
+ 
+    // Count unique players (one per user, regardless of how many Game rows they have)
+    const playerCount = await prisma.game.groupBy({
+      by: ['userId'],
       where: { sessionId: session.id },
-    });
-
+    }).then((rows) => rows.length);
+ 
     res.json({
       sessionId: session.id,
       gameId: game.id,
       dailyDate: session.dailyDate,
+      alreadyCompleted,
       playerCount,
       tracks: session.tracks,
     });
   } catch (e) {
-    console.error('getDaily error:', e.message);
-    res.status(500).json({ error: 'Failed to get daily challenge' });
+    console.error('getDaily error:', e.message, e.stack);
+    res.status(500).json({ error: e.message || 'Failed to get daily challenge' });
   }
 }
 

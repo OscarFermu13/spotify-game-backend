@@ -70,6 +70,7 @@ async function getSession(req, res) {
       penalty: session.penalty,
       owner: { id: session.ownerId, displayName: session.owner?.displayName || null },
       tracks: session.tracks,
+      source: session.source,
     });
   } catch (e) {
     console.error('getSession error:', e.message);
