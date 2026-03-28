@@ -75,6 +75,7 @@ async function getSessionLeaderboard(req, res) {
       const guessed = g.tracks.filter((t) => t.guessed).length;
       return {
         rank: idx + 1,
+        gameId: g.id,
         userId: g.userId,
         displayName: g.user.displayName || g.user.spotifyId,
         totalTime: g.totalTime,
@@ -110,6 +111,7 @@ async function getPersonalLeaderboard(req, res) {
             source: true,
             dailyDate: true,
             tracks: { select: { id: true } },
+            pack: { select: { name: true, slug: true } },
           },
         },
       },
@@ -126,6 +128,8 @@ async function getPersonalLeaderboard(req, res) {
         playlistUrl: g.session.playlistUrl,
         source: g.session.source,
         dailyDate: g.session.dailyDate,
+        packName: g.session.pack?.name ?? null,
+        packSlug: g.session.pack?.slug ?? null, 
         totalTime: g.totalTime,
         guessed,
         total,
@@ -156,8 +160,73 @@ async function getPersonalLeaderboard(req, res) {
   }
 }
 
+// ── GET /api/leaderboard/game/:gameId ────────────────────────────────────────
+async function getGameDetail(req, res) {
+  try {
+    const { gameId } = req.params;
+ 
+    const game = await prisma.game.findUnique({
+      where: { id: gameId },
+      include: {
+        user: { select: { id: true, displayName: true, spotifyId: true } },
+        session: {
+          include: {
+            tracks: { orderBy: { order: 'asc' } },
+          },
+        },
+        tracks: true,
+      },
+    });
+ 
+    if (!game) return res.status(404).json({ error: 'Game not found' });
+    if (!game.completed) return res.status(404).json({ error: 'Game not completed yet' });
+ 
+    const penalty = game.session?.penalty ?? 5;
+ 
+    const gameTrackMap = Object.fromEntries(
+      game.tracks.map((gt) => [gt.trackId, gt])
+    );
+ 
+    const tracks = game.session.tracks.map((st) => {
+      const gt = gameTrackMap[st.trackId] ?? {};
+      return {
+        trackId:     st.trackId,
+        name:        st.name,
+        artists:     st.artists    ?? [],
+        albumJson:   st.albumJson  ?? null,
+        durationMs:  st.durationMs ?? null,
+        guessed:     gt.guessed    ?? false,
+        skipped:     gt.skipped    ?? false,
+        timeTaken:   gt.timeTaken  ?? 0,
+        // TODO: Decompose timeTaken into base + penalty + hints for display
+        // timeTaken = baseTime + (penalty if wrong/skipped) + hintCost
+        penaltyCost: (!gt.guessed ? penalty : 0),
+      };
+    });
+ 
+    res.json({
+      gameId: game.id,
+      userId: game.userId,
+      displayName: game.user.displayName || game.user.spotifyId,
+      isCurrentUser: game.userId === req.user.id,
+      totalTime: game.totalTime,
+      guessed: tracks.filter((t) => t.guessed).length,
+      total: tracks.length,
+      accuracy: tracks.length > 0
+        ? Math.round((tracks.filter((t) => t.guessed).length / tracks.length) * 100)
+        : 0,
+      penalty,
+      tracks,
+    });
+  } catch (e) {
+    console.error('getGameDetail error:', e.message);
+    res.status(500).json({ error: 'Failed to fetch game detail' });
+  }
+}
+ 
 module.exports = {
   getGlobalLeaderboard,
   getSessionLeaderboard,
   getPersonalLeaderboard,
+  getGameDetail,
 };
