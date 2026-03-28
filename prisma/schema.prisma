@@ -15,6 +15,7 @@ model User {
   refreshToken String?
 
   games      Game[]
+  userPacks  UserPack[]
   sessions   GameSession[] @relation("SessionOwner")
   createdAt  DateTime @default(now())
 }
@@ -31,6 +32,8 @@ model GameSession {
   dailyDate   DateTime? @db.Date
   tracks SessionTrack[]
   games  Game[]
+  packId  String?
+  pack    Pack?   @relation(fields: [packId], references: [id])
 
   @@unique([dailyDate])
 }
@@ -69,4 +72,40 @@ model GameTrack {
   trackId   String
   guessed   Boolean
   timeTaken Float
+}
+
+model Pack {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String
+  imageUrl    String?
+  playlistUrl String
+  trackCount  Int       @default(5)
+  tier        String    @default("free")   // "free" | "premium"
+  price       Decimal?
+  currency    String?   @default("EUR")
+  isActive    Boolean   @default(true)
+  order       Int       @default(0)
+  tags        String[]  @default([])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sessions    GameSession[]
+  userPacks   UserPack[]
+}
+
+model UserPack {
+  id           String    @id @default(cuid())
+  userId       String
+  packId       String
+  unlockedAt   DateTime  @default(now())
+  expiresAt    DateTime?
+  source       String    @default("free")  // "free" | "purchase" | "promo"
+  priceCharged Decimal?
+
+  user  User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pack  Pack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, packId])
 }

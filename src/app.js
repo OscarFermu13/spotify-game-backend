@@ -13,6 +13,7 @@ const sessionRoutes = require('./routes/session');
 const leaderboardRoutes = require('./routes/leaderboard');
 const spotifyRoutes = require('./routes/spotify');
 const dailyRoutes = require('./routes/daily');
+const packsRoutes = require('./routes/packs');
 
 const app = express();
 app.use(express.json());
@@ -59,6 +60,7 @@ app.use('/api/spotify', spotifyRoutes);
 app.use('/api/daily', dailyRoutes);
 app.use('/api/session', sessionRoutes);
 app.use('/api/leaderboard', leaderboardRoutes);
+app.use('/api/packs', packsRoutes);
 app.use('/api/game', gameWriteLimiter, gameRoutes);
 app.use('/api/me', userRoutes);
 app.use('/api', playlistRoutes);

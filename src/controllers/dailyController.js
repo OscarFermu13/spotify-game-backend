@@ -33,7 +33,6 @@ async function getDaily(req, res) {
     });
  
     const alreadyCompleted = game?.completed ?? false;
-    console.log('getDaily - userId:', req.user.id, 'sessionId:', session.id, 'gameId:', game?.id, 'alreadyCompleted:', alreadyCompleted);
  
     // Only create a new game if the user has never joined this session
     if (!game) {
