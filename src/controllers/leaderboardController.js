@@ -107,6 +107,8 @@ async function getPersonalLeaderboard(req, res) {
           select: {
             id: true,
             playlistUrl: true,
+            source: true,
+            dailyDate: true,
             tracks: { select: { id: true } },
           },
         },
@@ -114,7 +116,7 @@ async function getPersonalLeaderboard(req, res) {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
-
+ 
     const history = games.map((g) => {
       const guessed = g.tracks.filter((t) => t.guessed).length;
       const total = g.session.tracks.length;
@@ -122,6 +124,8 @@ async function getPersonalLeaderboard(req, res) {
         gameId: g.id,
         sessionId: g.session.id,
         playlistUrl: g.session.playlistUrl,
+        source: g.session.source,
+        dailyDate: g.session.dailyDate,
         totalTime: g.totalTime,
         guessed,
         total,
@@ -129,7 +133,7 @@ async function getPersonalLeaderboard(req, res) {
         playedAt: g.createdAt,
       };
     });
-
+ 
     // Stats agregadas
     const stats =
       history.length > 0
@@ -144,7 +148,7 @@ async function getPersonalLeaderboard(req, res) {
               ),
           }
         : null;
-
+ 
     res.json({ stats, history });
   } catch (e) {
     console.error('getPersonalLeaderboard error:', e.message);

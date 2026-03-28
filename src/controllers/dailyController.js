@@ -112,13 +112,8 @@ async function generateDailySession(user, date) {
 
   // Use the date as a seed to get a deterministic shuffle for the day.
   // Simple seeded shuffle: sort by hash of (trackId + dateStr).
-  const dateStr = date.toISOString().slice(0, 10);
-  const seededTracks = [...allTracks].sort((a, b) => {
-    const hashA = simpleHash(a.id + dateStr);
-    const hashB = simpleHash(b.id + dateStr);
-    return hashA - hashB;
-  });
-
+  const dateStr = date.toISOString().slice(0, 10); // "YYYY-MM-DD"
+  const seededTracks = seededFisherYates([...allTracks], dateStr);
   const selected = seededTracks.slice(0, DAILY_TRACK_COUNT);
 
   return prisma.gameSession.create({
@@ -144,12 +139,35 @@ async function generateDailySession(user, date) {
   });
 }
 
-function simpleHash(str) {
-  let h = 0;
+// Mulberry32 — fast, high-quality 32-bit PRNG seeded with a single uint32.
+function mulberry32(seed) {
+  return function () {
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+ 
+// Convert a string to a uint32 seed.
+function strToSeed(str) {
+  let h = 0x811c9dc5;
   for (let i = 0; i < str.length; i++) {
-    h = (Math.imul(31, h) + str.charCodeAt(i)) | 0;
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 0x01000193) >>> 0;
   }
   return h;
+}
+ 
+// Fisher-Yates shuffle seeded deterministically from dateStr.
+// Produces a completely different permutation for each unique date.
+function seededFisherYates(arr, dateStr) {
+  const rand = mulberry32(strToSeed(dateStr));
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
 }
 
 module.exports = { getDaily, generateDaily };
