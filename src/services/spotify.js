@@ -1,13 +1,12 @@
 const axios = require('axios');
 const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET } = require('../config');
 const prisma = require('../prisma/client');
-const { encrypt, decrypt } = require('../utils/tokenCrypto');
+const { encrypt } = require('../utils/tokenCrypto');
 
 async function refreshAccessToken(user) {
   if (!user?.refreshToken) return null;
  
   try {
-    const plainRefreshToken = decrypt(user.refreshToken);
     if (!plainRefreshToken) return null;
  
     const resp = await axios.post(

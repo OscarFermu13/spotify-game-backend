@@ -71,6 +71,7 @@ model GameTrack {
   game      Game    @relation(fields: [gameId], references: [id])
   trackId   String
   guessed   Boolean
+  skipped   Boolean @default(false)
   timeTaken Float
 }
 

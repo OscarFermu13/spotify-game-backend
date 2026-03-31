@@ -86,7 +86,8 @@ async function joinSession(req, res) {
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
     let game = await prisma.game.findFirst({
-      where: { sessionId: id, userId: req.user.id, completed: false },
+      where: { sessionId: id, userId: req.user.id },
+      orderBy: { createdAt: 'desc' },
     });
     if (!game) {
       game = await prisma.game.create({
@@ -94,7 +95,11 @@ async function joinSession(req, res) {
       });
     }
 
-    res.json({ gameId: game.id, sessionId: session.id });
+    res.json({
+      gameId: game.id,
+      sessionId: session.id,
+      alreadyCompleted: game.completed,
+    });
   } catch (e) {
     console.error('joinSession error:', e.message);
     res.status(500).json({ error: 'Failed to join session' });

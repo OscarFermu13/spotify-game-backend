@@ -34,6 +34,9 @@ async function getAccessToken(req, res) {
     if (!accessToken) {
       accessToken = await refreshAccessToken(req.user);
     }
+    if (!accessToken) {
+      return res.status(500).json({ error: 'Could not obtain access token' });
+    }
     res.json({ accessToken });
   } catch (e) {
     console.error('token fetch error', e.response?.data || e.message);
