@@ -19,9 +19,11 @@ async function login(req, res) {
 
   const state = require('crypto').randomBytes(16).toString('hex');
 
+  const isProduction = process.env.NODE_ENV === 'production';
+
   res.cookie('oauth_state', state, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: isProduction,
     sameSite: 'Lax',
     maxAge: 10 * 60 * 1000,
   });
@@ -36,7 +38,7 @@ async function login(req, res) {
     `&redirect_uri=${encodeURIComponent(SPOTIFY_REDIRECT_URI)}` +
     `&state=${encodeURIComponent(state)}` +
     (showDialog ? '&show_dialog=true' : '');
- 
+
   res.redirect(url);
 }
 
@@ -48,9 +50,9 @@ async function callback(req, res) {
   if (!returnedState || !storedState || returnedState !== storedState) {
     return res.status(403).send('OAuth state mismatch. Possible CSRF attack.');
   }
- 
+
   res.clearCookie('oauth_state');
- 
+
   if (!code) return res.status(400).send('No authorization code received');
 
   try {
@@ -99,7 +101,7 @@ async function callback(req, res) {
 
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure:isProduction,
+      secure: isProduction,
       sameSite: isProduction ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
     });
@@ -111,4 +113,15 @@ async function callback(req, res) {
   }
 };
 
-module.exports = { login, callback };
+// ---------- POST /auth/logout ----------
+async function logout(req, res) {
+  const isProduction = process.env.NODE_ENV === 'production';
+  res.clearCookie('jwt', {
+    httpOnly: true,
+    secure: isProduction,
+    sameSite: isProduction ? 'none' : 'lax',
+  });
+  res.json({ ok: true });
+}
+
+module.exports = { login, callback, logout };
