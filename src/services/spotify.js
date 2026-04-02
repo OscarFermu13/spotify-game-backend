@@ -7,7 +7,7 @@ async function refreshAccessToken(user) {
   if (!user?.refreshToken) return null;
  
   try {
-    if (!plainRefreshToken) return null;
+    const plainRefreshToken = user.refreshToken;
  
     const resp = await axios.post(
       'https://accounts.spotify.com/api/token',

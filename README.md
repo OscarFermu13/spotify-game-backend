@@ -1,10 +1,15 @@
-# Spotify Guessing Game - Backend Server 🎵
+# SpotifyQuiz - Backend Server 🎵
 
-> **Note:** This repository houses the **backend logic** for the music trivia web app. It handles OAuth 2.0 authentication with Spotify, session management, and game logic. The React frontend is in a separate private repository.
+> This repository contains the **backend** for SpotifyQuiz, a daily music guessing game inspired by Wordle. It handles Spotify OAuth, session management, game logic, leaderboards, and the daily challenge system. The React frontend lives in a separate repository.
 
 ## 🎮 Project Overview
 
-A web game that challenges users to guess songs from their own Spotify playlists as quickly as possible. Players can create shareable game sessions from any playlist, and results are persisted per user. This server acts as a secure proxy between the client and the Spotify Web API.
+Players hear clips from songs and race to identify them as fast as possible. Every wrong guess or skipped track adds a time penalty. The server acts as a secure proxy between the browser and the Spotify Web API — no Spotify credentials ever reach the client.
+
+Three play modes are supported:
+- **Daily challenge** — the same 5 songs for every player worldwide, reshuffled each midnight UTC using a seeded PRNG. Results are shareable (Wordle-style emoji grid).
+- **Packs** — curated thematic collections (90s Rock, Reggaeton, etc.) with a fresh random shuffle on each play.
+- **Free mode** — any Spotify playlist, with a shareable session link for multiplayer.
 
 ## ⚡ Key Engineering Features
 
@@ -12,74 +17,120 @@ A web game that challenges users to guess songs from their own Spotify playlists
 
 Implemented strictly backend-side to protect user credentials.
 
-- **Security:** The `CLIENT_SECRET` is never exposed to the browser. All token exchange happens server-side.
-- **Token Management:** The server exchanges authorization codes for Access and Refresh Tokens, persists them in the database, and automatically refreshes expired tokens before each Spotify API call.
-- **Session via JWT:** After authentication, a signed JWT is issued to the client for stateless session management across requests.
+- **Security:** The `CLIENT_SECRET` is never exposed to the browser. All token exchange and refresh logic happens server-side.
+- **CSRF protection:** A `state` parameter is generated per login attempt and validated via a short-lived `oauth_state` HttpOnly cookie before the callback is accepted.
+- **Token storage:** Access and refresh tokens are encrypted at rest using AES-256-GCM before being written to the database. The middleware decrypts them once per request into `req.user` — downstream services receive plaintext and never call `decrypt()` themselves.
+- **Session via JWT:** After authentication, a signed JWT is issued as an HttpOnly cookie for stateless session management. A `POST /auth/logout` endpoint clears it server-side.
 
 ### 2. Shared Game Sessions
 
-- **Session creation:** A user selects a playlist and a track count. The server fetches, shuffles, and **freezes** the track selection into a `GameSession`, so every player who joins plays the exact same songs.
+- **Session creation:** A user selects a playlist and track count. The server fetches, shuffles, and **freezes** the selection into a `GameSession`, so every player who joins plays the exact same songs.
+- **Idempotent join:** `POST /api/session/:id/join` reuses an existing `Game` record if the user has already joined — it never creates duplicates regardless of how many times it is called.
+- **Per-user tracking:** Each participant gets their own `Game` record linked to the session, storing per-track results (`guessed`, `timeTaken`).
 - **Shareable link:** Each session generates a unique URL (`/session/:id`) that can be shared with other users.
-- **Per-user game tracking:** Each participant gets their own `Game` record linked to the session, storing per-track results (guessed, time taken).
 
-### 3. Spotify API Integration
+### 3. Daily Challenge System
 
-- **Dynamic data fetching:** Retrieves user playlists and full track metadata (artists, album, URI, duration) in real-time.
-- **Automatic token refresh:** If a stored access token is expired, the server transparently refreshes it using the stored refresh token before retrying the Spotify request.
+- **Deterministic shuffle:** Each day's track selection uses a seeded Fisher-Yates shuffle (Mulberry32 PRNG seeded from the date string). Every player in the world gets the same tracks in the same order.
+- **On-the-fly generation:** If no session exists for today (e.g. during development), `GET /api/daily` generates one automatically. In production, a cron job calls `POST /api/daily/generate` at 23:55 UTC to pre-generate the next day's session.
+- **One play per day:** The endpoint returns `alreadyCompleted: true` if the user has already finished today's session, so the frontend can block replays without a separate check.
+
+### 4. Pack System
+
+- **Catalogue management:** Packs are defined in the `Pack` table with fields for `tier` (`free` / `premium`), `price`, `currency`, and `isActive`. Access is tracked per user in `UserPack` with an optional `expiresAt` for time-limited access.
+- **Monetisation-ready:** `POST /api/packs/:slug/unlock` accepts a `paymentToken` body parameter. The Stripe verification step is stubbed with a clear `TODO` — plugging in the real check requires one function call.
+- **Fresh shuffle per play:** Unlike daily sessions, each pack play generates a new `GameSession` with a random seed so the track order is never the same twice.
+
+### 5. Spotify API Integration
+
+- **Proxy architecture:** The browser never calls Spotify directly. All playback commands, track searches, and playlist fetches go through `/api/spotify/*` endpoints, which add the user's token and forward the request.
+- **Automatic token refresh:** If a stored access token is expired, the server transparently refreshes it using the stored refresh token, re-encrypts the new access token, and persists it before retrying.
 
 ## 🛠️ Tech Stack
 
 | Layer | Technology |
 | :--- | :--- |
-| Runtime | Node.js |
-| Framework | Express.js |
+| Runtime | Node.js 18+ |
+| Framework | Express 4 |
 | Database | PostgreSQL (Supabase) |
-| ORM | Prisma |
-| Auth | OAuth 2.0 + JWT |
-| Integration | Spotify Web API |
+| ORM | Prisma 5 |
+| Auth | OAuth 2.0 Authorization Code + JWT (HttpOnly cookie) |
+| Crypto | Node `crypto` — AES-256-GCM |
+| Integration | Spotify Web API + Web Playback SDK (via proxy) |
 
 ## 📡 API Endpoints
 
 ### Auth
 | Method | Endpoint | Description |
 | :--- | :--- | :--- |
-| `GET` | `/auth/login` | Redirects user to Spotify's authorization page |
-| `GET` | `/auth/callback` | Handles OAuth callback, exchanges code for tokens, issues JWT |
+| `GET` | `/auth/login` | Redirects to Spotify authorisation. `?switch_account=true` forces account picker |
+| `GET` | `/auth/callback` | Exchanges code for tokens, issues JWT cookie |
+| `POST` | `/auth/logout` | Clears the JWT cookie server-side |
 
 ### User
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/api/me/playlists` | ✅ | Returns the authenticated user's Spotify playlists |
-| `GET` | `/api/me/token` | ✅ | Returns a valid Spotify access token (refreshes if needed) |
-
-### Playlist
-| Method | Endpoint | Auth | Description |
-| :--- | :--- | :--- | :--- |
-| `GET` | `/api/playlist?url=&count=` | ✅ | Fetches and shuffles N tracks from a given playlist URL |
+| `GET` | `/api/me` | ✅ | Authenticated user profile |
+| `GET` | `/api/me/playlists` | ✅ | User's Spotify playlists |
+| `GET` | `/api/me/token` | ✅ | Fresh Spotify access token for the Web Playback SDK |
 
 ### Sessions
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/session/create` | ✅ | Creates a new shareable game session from a playlist |
-| `GET` | `/api/session/:id` | ✅ | Retrieves session data and frozen track list |
-| `POST` | `/api/session/:id/join` | ✅ | Joins a session and creates a personal game record |
+| `POST` | `/api/session/create` | ✅ | Create a shareable custom session from a playlist |
+| `GET` | `/api/session/:id` | ✅ | Session metadata and frozen track list |
+| `POST` | `/api/session/:id/join` | ✅ | Join a session (idempotent) |
 
 ### Game
 | Method | Endpoint | Auth | Description |
 | :--- | :--- | :--- | :--- |
-| `POST` | `/api/game/save` | ✅ | Saves final game results (track outcomes, total time) |
+| `POST` | `/api/game/save` | ✅ | Persist final results. Returns 409 if already saved |
+
+### Daily
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/daily` | ✅ | Today's session + user's game record |
+| `POST` | `/api/daily/generate` | `x-cron-secret` | Pre-generate tomorrow's session (cron job) |
+
+### Packs
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/packs` | ✅ | Pack catalogue with per-user `unlocked` status |
+| `GET` | `/api/packs/:slug` | ✅ | Single pack detail |
+| `POST` | `/api/packs/:slug/play` | ✅ | Start a new shuffled session from a pack |
+| `POST` | `/api/packs/:slug/unlock` | ✅ | Unlock a pack (Stripe stub for premium) |
+
+### Leaderboards
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/leaderboard/global` | ✅ | Top 20 by average time (min 3 tracks) |
+| `GET` | `/api/leaderboard/session/:id` | ✅ | Full ranking for a session |
+| `GET` | `/api/leaderboard/game/:gameId` | ✅ | Track-by-track breakdown for a single completed game |
+| `GET` | `/api/leaderboard/me` | ✅ | Personal history and stats, segmented by source (daily / pack / custom) |
+
+### Spotify proxy
+| Method | Endpoint | Auth | Description |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/spotify/search` | ✅ | Track search |
+| `PUT` | `/api/spotify/play` | ✅ | Trigger playback on the SDK device |
+| `PUT` | `/api/spotify/pause` | ✅ | Pause playback |
 
 ## 🗄️ Data Model
+
 ```
 User ──< Game >── GameSession ──< SessionTrack
               └──────────────< GameTrack
+Pack ──< GameSession
+User ──< UserPack >── Pack
 ```
 
-- **User** — Spotify identity + stored tokens
-- **GameSession** — A frozen, shareable set of tracks from a playlist
-- **SessionTrack** — The tracks locked into a session (order, metadata)
+- **User** — Spotify identity + AES-256-GCM encrypted tokens
+- **GameSession** — A frozen, shareable set of tracks (`source`: `daily` | `pack` | `custom`)
+- **SessionTrack** — Tracks locked into a session with full metadata
 - **Game** — One user's run of a session
-- **GameTrack** — Per-track result (guessed: bool, timeTaken: float)
+- **GameTrack** — Per-track result (`guessed`, `skipped`, `timeTaken`)
+- **Pack** — Curated collection with `tier` (`free` / `premium`), `price`, and `isActive`
+- **UserPack** — Per-user access record with optional `expiresAt` for subscriptions
 
 ## 🚀 How to Run
 
@@ -102,15 +153,26 @@ Create a `.env` file in the root:
 SPOTIFY_CLIENT_ID=your_client_id
 SPOTIFY_CLIENT_SECRET=your_client_secret
 SPOTIFY_REDIRECT_URI=http://localhost:4000/auth/callback
+
 JWT_SECRET=a_long_random_secret_string
 DATABASE_URL=postgresql://user:password@host:5432/dbname
+
+# Generate with: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+TOKEN_ENCRYPTION_KEY=64_hex_characters
+
 FRONTEND_URL=http://localhost:5173
 PORT=4000
+
+# Daily challenge
+DAILY_PLAYLIST_URL=https://open.spotify.com/playlist/37i9dQZEVXbMDoHDwVN2tF
+DAILY_TRACK_COUNT=5
+CRON_SECRET=a_random_secret_for_the_cron_endpoint
 ```
 
 ### Database setup
 ```bash
 npx prisma migrate deploy
+npx prisma generate
 ```
 
 ### Start the server
@@ -124,9 +186,11 @@ npm start
 
 The server will be available at `http://localhost:4000`.
 
-## 🔮 Future Improvements
+### Daily challenge cron
 
-- WebSocket support (Socket.io) for real-time multiplayer — live score updates as other players finish.
-- Redis caching for frequently accessed session and playlist metadata.
-- Rate limiting middleware to protect endpoints from abuse.
-- Encrypted storage of Spotify tokens in the database.
+Set up a cron job to pre-generate each day's session the night before:
+```bash
+# 23:55 UTC daily
+curl -X POST https://your-api/api/daily/generate \
+  -H "x-cron-secret: $CRON_SECRET"
+```
