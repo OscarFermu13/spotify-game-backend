@@ -22,6 +22,7 @@ async function saveGame(req, res) {
       gameId,
       trackId: t.trackId,
       guessed: !!t.guessed,
+      skipped: !!t.skipped,
       timeTaken: Number(t.timeTaken || 0)
     }));
 
