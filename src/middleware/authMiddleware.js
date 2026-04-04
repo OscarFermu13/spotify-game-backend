@@ -5,8 +5,7 @@ const { decrypt } = require('../utils/tokenCrypto');
 async function authMiddleware(req, res, next) {
   const token =
     req.cookies?.jwt ||
-    req.headers.authorization?.split(' ')[1] ||
-    req.query.token;
+    req.headers.authorization?.split(' ')[1];
 
   if (!token) return res.status(401).json({ error: 'No token' });
 

@@ -63,6 +63,10 @@ async function getSession(req, res) {
     });
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
+    if (!session.isPublic && session.ownerId !== req.user.id) {
+      return res.status(403).json({ error: 'Access denied' });
+    }
+
     res.json({
       id: session.id,
       playlistUrl: session.playlistUrl,

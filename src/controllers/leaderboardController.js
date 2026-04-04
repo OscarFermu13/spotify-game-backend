@@ -62,6 +62,16 @@ async function getSessionLeaderboard(req, res) {
     });
     if (!session) return res.status(404).json({ error: 'Session not found' });
 
+    if (!session.isPublic) {
+      const isOwner = session.ownerId === req.user.id;
+      const isParticipant = await prisma.game.findFirst({
+        where: { sessionId: id, userId: req.user.id },
+      });
+      if (!isOwner && !isParticipant) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+    }
+
     const games = await prisma.game.findMany({
       where: { sessionId: id, completed: true, totalTime: { not: null } },
       include: {
@@ -180,6 +190,7 @@ async function getGameDetail(req, res) {
  
     if (!game) return res.status(404).json({ error: 'Game not found' });
     if (!game.completed) return res.status(404).json({ error: 'Game not completed yet' });
+    if (!game.session.isPublic && game.userId !== req.user.id) return res.status(403).json({ error: 'Access denied' });
  
     const penalty = game.session?.penalty ?? 5;
  
