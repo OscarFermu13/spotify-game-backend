@@ -128,7 +128,7 @@ async function getPersonalLeaderboard(req, res) {
       orderBy: { createdAt: 'desc' },
       take: 50,
     });
- 
+
     const history = games.map((g) => {
       const guessed = g.tracks.filter((t) => t.guessed).length;
       const total = g.session.tracks.length;
@@ -139,7 +139,7 @@ async function getPersonalLeaderboard(req, res) {
         source: g.session.source,
         dailyDate: g.session.dailyDate,
         packName: g.session.pack?.name ?? null,
-        packSlug: g.session.pack?.slug ?? null, 
+        packSlug: g.session.pack?.slug ?? null,
         totalTime: g.totalTime,
         guessed,
         total,
@@ -147,22 +147,22 @@ async function getPersonalLeaderboard(req, res) {
         playedAt: g.createdAt,
       };
     });
- 
+
     // Stats agregadas
     const stats =
       history.length > 0
         ? {
-            gamesPlayed: history.length,
-            bestTime: Math.min(...history.map((g) => g.totalTime)),
-            avgTime:
-              history.reduce((a, g) => a + g.totalTime, 0) / history.length,
-            avgAccuracy:
-              Math.round(
-                history.reduce((a, g) => a + g.accuracy, 0) / history.length
-              ),
-          }
+          gamesPlayed: history.length,
+          bestTime: Math.min(...history.map((g) => g.totalTime)),
+          avgTime:
+            history.reduce((a, g) => a + g.totalTime, 0) / history.length,
+          avgAccuracy:
+            Math.round(
+              history.reduce((a, g) => a + g.accuracy, 0) / history.length
+            ),
+        }
         : null;
- 
+
     res.json({ stats, history });
   } catch (e) {
     console.error('getPersonalLeaderboard error:', e.message);
@@ -174,7 +174,7 @@ async function getPersonalLeaderboard(req, res) {
 async function getGameDetail(req, res) {
   try {
     const { gameId } = req.params;
- 
+
     const game = await prisma.game.findUnique({
       where: { id: gameId },
       include: {
@@ -187,34 +187,34 @@ async function getGameDetail(req, res) {
         tracks: true,
       },
     });
- 
+
     if (!game) return res.status(404).json({ error: 'Game not found' });
     if (!game.completed) return res.status(404).json({ error: 'Game not completed yet' });
     if (!game.session.isPublic && game.userId !== req.user.id) return res.status(403).json({ error: 'Access denied' });
- 
+
     const penalty = game.session?.penalty ?? 5;
- 
+
     const gameTrackMap = Object.fromEntries(
       game.tracks.map((gt) => [gt.trackId, gt])
     );
- 
+
     const tracks = game.session.tracks.map((st) => {
       const gt = gameTrackMap[st.trackId] ?? {};
       return {
-        trackId:     st.trackId,
-        name:        st.name,
-        artists:     st.artists    ?? [],
-        albumJson:   st.albumJson  ?? null,
-        durationMs:  st.durationMs ?? null,
-        guessed:     gt.guessed    ?? false,
-        skipped:     gt.skipped    ?? false,
-        timeTaken:   gt.timeTaken  ?? 0,
-        // TODO: Decompose timeTaken into base + penalty + hints for display
-        // timeTaken = baseTime + (penalty if wrong/skipped) + hintCost
-        penaltyCost: (!gt.guessed ? penalty : 0),
+        trackId: st.trackId,
+        name: st.name,
+        artists: st.artists ?? [],
+        albumJson: st.albumJson ?? null,
+        durationMs: st.durationMs ?? null,
+        guessed: gt.guessed ?? false,
+        skipped: gt.skipped ?? false,
+        timeTaken: gt.timeTaken ?? 0,
+        baseTime: gt.baseTime ?? 0,
+        hintCost: gt.hintCost ?? 0,
+        penaltyCost: !gt.guessed ? penalty : 0,
       };
     });
- 
+
     res.json({
       gameId: game.id,
       userId: game.userId,
@@ -234,7 +234,7 @@ async function getGameDetail(req, res) {
     res.status(500).json({ error: 'Failed to fetch game detail' });
   }
 }
- 
+
 module.exports = {
   getGlobalLeaderboard,
   getSessionLeaderboard,

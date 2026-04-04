@@ -73,6 +73,8 @@ model GameTrack {
   guessed   Boolean
   skipped   Boolean @default(false)
   timeTaken Float
+  baseTime  Float   @default(0)
+  hintCost  Float   @default(0)
 }
 
 model Pack {

@@ -19,12 +19,14 @@ async function saveGame(req, res) {
 
     // Guardar detalle de tracks
     const toCreate = tracks.map(t => ({
-      gameId,
-      trackId: t.trackId,
-      guessed: !!t.guessed,
-      skipped: !!t.skipped,
-      timeTaken: Number(t.timeTaken || 0)
-    }));
+  gameId,
+  trackId: t.trackId,
+  guessed: !!t.guessed,
+  skipped: !!t.skipped,
+  timeTaken: Number(t.timeTaken || 0),
+  baseTime: Number(t.baseTime || 0),
+  hintCost: Number(t.hintCost || 0),
+}));
 
     await prisma.$transaction([
       prisma.gameTrack.deleteMany({ where: { gameId } }),
