@@ -1,6 +1,7 @@
 const prisma = require('../prisma/client');
 const { seededFisherYates } = require('../utils/prng');
 const { fetchPlaylistTracksOrdered, refreshAccessToken } = require('../services/spotify');
+const { isValidSlug } = require('../utils/validate');
 
 // ── GET /api/packs ────────────────────────────────────────────────────────────
 // Returns all active packs with the current user's access status.
@@ -56,6 +57,8 @@ async function listPacks(req, res) {
 // ── GET /api/packs/:slug ──────────────────────────────────────────────────────
 async function getPack(req, res) {
   try {
+    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
+
     const pack = await prisma.pack.findUnique({
       where: { slug: req.params.slug },
     });
@@ -80,6 +83,8 @@ async function getPack(req, res) {
 // Each call generates a freshly-shuffled session (random seed = Date.now()).
 async function playPack(req, res) {
   try {
+    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
+
     const pack = await prisma.pack.findUnique({ where: { slug: req.params.slug } });
     if (!pack || !pack.isActive) return res.status(404).json({ error: 'Pack not found' });
 
@@ -94,6 +99,11 @@ async function playPack(req, res) {
       if (!access) return res.status(403).json({ error: 'Pack not unlocked', tier: pack.tier });
     }
 
+    if (!Number.isInteger(pack.trackCount) || pack.trackCount < 1) {
+      console.error(`Pack ${pack.slug} has invalid trackCount: ${pack.trackCount}`);
+      return res.status(500).json({ error: 'Pack configuration error' });
+    }
+
     // Fetch tracks from Spotify
     const playlistId = pack.playlistUrl.split('playlist/')[1]?.split('?')[0];
     if (!playlistId) return res.status(500).json({ error: 'Invalid playlist URL in pack' });
@@ -105,6 +115,13 @@ async function playPack(req, res) {
     }
 
     const allTracks = await fetchPlaylistTracksOrdered({ accessToken, playlistId, limit: 100 });
+
+    if (!allTracks.length) {
+      return res.status(500).json({ error: 'Pack playlist has no tracks' });
+    }
+    if (allTracks.length < pack.trackCount) {
+      console.warn(`Pack ${pack.slug}: playlist has ${allTracks.length} tracks but trackCount is ${pack.trackCount}. Using all available.`);
+    }
 
     // Random seed per play so each session is different
     const seed = `${pack.slug}-${Date.now()}`;
@@ -156,6 +173,8 @@ async function playPack(req, res) {
 // payment verification — placeholder for future Stripe integration).
 async function unlockPack(req, res) {
   try {
+    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
+
     const pack = await prisma.pack.findUnique({ where: { slug: req.params.slug } });
     if (!pack || !pack.isActive) return res.status(404).json({ error: 'Pack not found' });
 

@@ -1,6 +1,6 @@
-// src/controllers/sessionController.js
 const { refreshAccessToken, fetchPlaylistTracksOrdered } = require('../services/spotify');
 const { parsePlaylistId, fisherYatesShuffle } = require('../utils/helpers');
+const { isValidId } = require('../utils/validate');
 const { FRONTEND_URL } = require('../config');
 const prisma = require('../prisma/client');
 
@@ -9,6 +9,20 @@ async function createSession(req, res) {
   try {
     const { playlistUrl, isPublic = true, count = 5, penalty } = req.body;
     if (!playlistUrl) return res.status(400).json({ error: 'Missing playlistUrl' });
+
+    const parsedCount = parseInt(count, 10);
+    if (isNaN(parsedCount) || parsedCount < 1 || parsedCount > 50) {
+      return res.status(400).json({ error: 'count must be an integer between 1 and 50' });
+    }
+
+    const parsedPenalty = penalty !== undefined ? Number(penalty) : 5;
+    if (isNaN(parsedPenalty) || parsedPenalty < 0 || parsedPenalty > 60) {
+      return res.status(400).json({ error: 'penalty must be a number between 0 and 60' });
+    }
+
+    if (typeof isPublic !== 'boolean') {
+      return res.status(400).json({ error: 'isPublic must be a boolean' });
+    }
 
     let accessToken = req.user.accessToken;
     if (!accessToken) {
@@ -22,14 +36,14 @@ async function createSession(req, res) {
     const tracks = await fetchPlaylistTracksOrdered({ accessToken, playlistId, limit: 100 });
     if (!tracks.length) return res.status(400).json({ error: 'Playlist without tracks' });
 
-    const selected = fisherYatesShuffle([...tracks]).slice(0, Number(count));
+    const selected = fisherYatesShuffle([...tracks]).slice(0, parsedCount);
 
     const session = await prisma.gameSession.create({
       data: {
         playlistUrl,
         isPublic,
         ownerId: req.user.id,
-        penalty,
+        penalty: parsedPenalty,
         tracks: {
           create: selected.map((t, idx) => ({
             order: idx,
@@ -57,6 +71,8 @@ async function createSession(req, res) {
 async function getSession(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ error: 'Invalid session ID' });
+
     const session = await prisma.gameSession.findUnique({
       where: { id },
       include: { tracks: { orderBy: { order: 'asc' } }, owner: true },
@@ -86,6 +102,8 @@ async function getSession(req, res) {
 async function joinSession(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ error: 'Invalid session ID' });
+
     const session = await prisma.gameSession.findUnique({ where: { id } });
     if (!session) return res.status(404).json({ error: 'Session not found' });
 

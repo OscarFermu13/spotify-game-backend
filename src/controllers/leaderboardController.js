@@ -1,5 +1,5 @@
-// src/controllers/leaderboardController.js
 const prisma = require('../prisma/client');
+const { isValidId } = require('../utils/validate');
 
 // ── GET /api/leaderboard/global ──────────────────────────────────────────────
 async function getGlobalLeaderboard(req, res) {
@@ -55,6 +55,7 @@ async function getGlobalLeaderboard(req, res) {
 async function getSessionLeaderboard(req, res) {
   try {
     const { id } = req.params;
+    if (!isValidId(id)) return res.status(400).json({ error: 'Invalid session ID' });
 
     const session = await prisma.gameSession.findUnique({
       where: { id },
@@ -174,6 +175,7 @@ async function getPersonalLeaderboard(req, res) {
 async function getGameDetail(req, res) {
   try {
     const { gameId } = req.params;
+    if (!isValidId(gameId)) return res.status(400).json({ error: 'Invalid game ID' });
 
     const game = await prisma.game.findUnique({
       where: { id: gameId },

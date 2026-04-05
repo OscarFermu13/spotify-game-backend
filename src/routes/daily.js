@@ -1,4 +1,3 @@
-// src/routes/daily.js
 const express = require('express');
 const authMiddleware = require('../middleware/authMiddleware');
 const { getDaily, generateDaily } = require('../controllers/dailyController');
