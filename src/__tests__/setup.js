@@ -1,0 +1,10 @@
+process.env.JWT_SECRET = 'test-secret-for-jest';
+process.env.TOKEN_ENCRYPTION_KEY = 'a'.repeat(64);
+process.env.SPOTIFY_CLIENT_ID = 'test-client-id';
+process.env.SPOTIFY_CLIENT_SECRET = 'test-client-secret';
+process.env.SPOTIFY_REDIRECT_URI = 'http://localhost:4000/auth/callback';
+process.env.FRONTEND_URL = 'http://localhost:5173';
+process.env.CRON_SECRET = 'test-cron-secret';
+process.env.DATABASE_URL = 'postgresql://test';
+process.env.DAILY_PLAYLIST_URL = 'https://open.spotify.com/playlist/testplaylistid';
+process.env.DAILY_TRACK_COUNT = '5';
