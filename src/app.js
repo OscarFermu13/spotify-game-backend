@@ -68,7 +68,7 @@ app.use('/api', playlistRoutes);
 // ── Manejo global de errores ─────────────────────────────────────────────────
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(err.status || 500).json({ error: err.message || 'Internal server error' });
+  sendError(res, err.status || 500, ERROR_CODES.INTERNAL_ERROR, err.message || 'Internal server error');
 });
 
 module.exports = app;

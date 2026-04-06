@@ -2,6 +2,7 @@ const prisma = require('../prisma/client');
 const { fetchPlaylistTracksOrdered, refreshAccessToken } = require('../services/spotify');
 const { seededFisherYates } = require('../utils/prng');
 const { DAILY_PLAYLIST_URL, DAILY_TRACK_COUNT, CRON_SECRET } = require('../config');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 function todayUTC() {
   const now = new Date();
@@ -21,7 +22,6 @@ async function getDaily(req, res) {
     });
  
     if (!session) {
-
       session = await generateDailySession(req.user, today);
     }
  
@@ -56,7 +56,7 @@ async function getDaily(req, res) {
     });
   } catch (e) {
     console.error('getDaily error:', e.message, e.stack);
-    res.status(500).json({ error: e.message || 'Failed to get daily challenge' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, e.message || 'Failed to get daily challenge');
   }
 }
 
@@ -64,7 +64,7 @@ async function getDaily(req, res) {
 async function generateDaily(req, res) {
   const secret = req.headers['x-cron-secret'];
   if (!secret || secret !== CRON_SECRET) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return sendError(res, 401, ERROR_CODES.UNAUTHORIZED, 'Unauthorized');
   }
 
   try {
@@ -80,13 +80,13 @@ async function generateDaily(req, res) {
 
     // Use the first admin user in the DB as the session owner
     const owner = await prisma.user.findFirst({ orderBy: { createdAt: 'asc' } });
-    if (!owner) return res.status(500).json({ error: 'No users in DB' });
+    if (!owner) return sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'No users in DB');
 
     const session = await generateDailySession(owner, tomorrow);
     res.json({ sessionId: session.id, dailyDate: tomorrow });
   } catch (e) {
     console.error('generateDaily error:', e.message);
-    res.status(500).json({ error: 'Failed to generate daily challenge' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to generate daily challenge');
   }
 }
 

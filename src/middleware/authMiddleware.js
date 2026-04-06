@@ -1,18 +1,19 @@
 const { verifyJwt } = require('../utils/jwt');
 const prisma = require('../prisma/client');
 const { decrypt } = require('../utils/tokenCrypto');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 async function authMiddleware(req, res, next) {
   const token =
     req.cookies?.jwt ||
     req.headers.authorization?.split(' ')[1];
 
-  if (!token) return res.status(401).json({ error: 'No token' });
+  if (!token) return sendError(res, 401, ERROR_CODES.NO_TOKEN, 'No token provided');
 
   try {
     const decoded = verifyJwt(token);
     const user = await prisma.user.findUnique({ where: { id: decoded.userId } });
-    if (!user) return res.status(401).json({ error: 'Invalid user' });
+    if (!user) return sendError(res, 401, ERROR_CODES.INVALID_USER, 'Invalid user');
 
     req.user = {
       ...user,
@@ -22,7 +23,7 @@ async function authMiddleware(req, res, next) {
 
     next();
   } catch {
-    return res.status(401).json({ error: 'Invalid token' });
+    return sendError(res, 401, ERROR_CODES.INVALID_TOKEN, 'Invalid token');
   }
 }
 

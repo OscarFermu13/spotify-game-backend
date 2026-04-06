@@ -1,5 +1,6 @@
 const prisma = require('../prisma/client');
 const { isValidId } = require('../utils/validate');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 // ── GET /api/leaderboard/global ──────────────────────────────────────────────
 async function getGlobalLeaderboard(req, res) {
@@ -47,7 +48,7 @@ async function getGlobalLeaderboard(req, res) {
     res.json(leaderboard);
   } catch (e) {
     console.error('getGlobalLeaderboard error:', e.message);
-    res.status(500).json({ error: 'Failed to fetch leaderboard' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch leaderboard');
   }
 }
 
@@ -55,13 +56,13 @@ async function getGlobalLeaderboard(req, res) {
 async function getSessionLeaderboard(req, res) {
   try {
     const { id } = req.params;
-    if (!isValidId(id)) return res.status(400).json({ error: 'Invalid session ID' });
+    if (!isValidId(id)) return sendError(res, 400, ERROR_CODES.INVALID_ID, 'Invalid session ID');
 
     const session = await prisma.gameSession.findUnique({
       where: { id },
       include: { tracks: { select: { id: true } } },
     });
-    if (!session) return res.status(404).json({ error: 'Session not found' });
+    if (!session) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Session not found');
 
     if (!session.isPublic) {
       const isOwner = session.ownerId === req.user.id;
@@ -69,7 +70,7 @@ async function getSessionLeaderboard(req, res) {
         where: { sessionId: id, userId: req.user.id },
       });
       if (!isOwner && !isParticipant) {
-        return res.status(403).json({ error: 'Access denied' });
+        return sendError(res, 403, ERROR_CODES.ACCESS_DENIED, 'Access denied');
       }
     }
 
@@ -104,7 +105,7 @@ async function getSessionLeaderboard(req, res) {
     });
   } catch (e) {
     console.error('getSessionLeaderboard error:', e.message);
-    res.status(500).json({ error: 'Failed to fetch session leaderboard' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch session leaderboard');
   }
 }
 
@@ -167,7 +168,7 @@ async function getPersonalLeaderboard(req, res) {
     res.json({ stats, history });
   } catch (e) {
     console.error('getPersonalLeaderboard error:', e.message);
-    res.status(500).json({ error: 'Failed to fetch personal leaderboard' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch personal leaderboard');
   }
 }
 
@@ -175,7 +176,7 @@ async function getPersonalLeaderboard(req, res) {
 async function getGameDetail(req, res) {
   try {
     const { gameId } = req.params;
-    if (!isValidId(gameId)) return res.status(400).json({ error: 'Invalid game ID' });
+    if (!isValidId(gameId)) return sendError(res, 400, ERROR_CODES.INVALID_ID, 'Invalid game ID');
 
     const game = await prisma.game.findUnique({
       where: { id: gameId },
@@ -190,9 +191,11 @@ async function getGameDetail(req, res) {
       },
     });
 
-    if (!game) return res.status(404).json({ error: 'Game not found' });
-    if (!game.completed) return res.status(404).json({ error: 'Game not completed yet' });
-    if (!game.session.isPublic && game.userId !== req.user.id) return res.status(403).json({ error: 'Access denied' });
+    if (!game) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Game not found');
+    if (!game.completed) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Game not completed yet');
+    if (!game.session.isPublic && game.userId !== req.user.id) {
+      return sendError(res, 403, ERROR_CODES.ACCESS_DENIED, 'Access denied');
+    }
 
     const penalty = game.session?.penalty ?? 5;
 
@@ -233,7 +236,7 @@ async function getGameDetail(req, res) {
     });
   } catch (e) {
     console.error('getGameDetail error:', e.message);
-    res.status(500).json({ error: 'Failed to fetch game detail' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch game detail');
   }
 }
 

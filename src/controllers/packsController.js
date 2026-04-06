@@ -2,6 +2,7 @@ const prisma = require('../prisma/client');
 const { seededFisherYates } = require('../utils/prng');
 const { fetchPlaylistTracksOrdered, refreshAccessToken } = require('../services/spotify');
 const { isValidSlug } = require('../utils/validate');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 // ── GET /api/packs ────────────────────────────────────────────────────────────
 // Returns all active packs with the current user's access status.
@@ -50,19 +51,16 @@ async function listPacks(req, res) {
     res.json(result);
   } catch (e) {
     console.error('listPacks error:', e.message);
-    res.status(500).json({ error: 'Failed to list packs' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to list packs');
   }
 }
 
 // ── GET /api/packs/:slug ──────────────────────────────────────────────────────
 async function getPack(req, res) {
   try {
-    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
-
-    const pack = await prisma.pack.findUnique({
-      where: { slug: req.params.slug },
-    });
-    if (!pack || !pack.isActive) return res.status(404).json({ error: 'Pack not found' });
+    if (!isValidSlug(req.params.slug)) return sendError(res, 400, ERROR_CODES.INVALID_SLUG, 'Invalid pack slug');
+    const pack = await prisma.pack.findUnique({ where: { slug: req.params.slug } });
+    if (!pack || !pack.isActive) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Pack not found');
 
     const unlocked = pack.tier === 'free' || await prisma.userPack.findFirst({
       where: {
@@ -74,7 +72,7 @@ async function getPack(req, res) {
     res.json({ ...pack, price: pack.price ? Number(pack.price) : null, unlocked });
   } catch (e) {
     console.error('getPack error:', e.message);
-    res.status(500).json({ error: 'Failed to get pack' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to get pack');
   }
 }
 
@@ -83,10 +81,10 @@ async function getPack(req, res) {
 // Each call generates a freshly-shuffled session (random seed = Date.now()).
 async function playPack(req, res) {
   try {
-    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
+    if (!isValidSlug(req.params.slug)) return sendError(res, 400, ERROR_CODES.INVALID_SLUG, 'Invalid pack slug');
 
     const pack = await prisma.pack.findUnique({ where: { slug: req.params.slug } });
-    if (!pack || !pack.isActive) return res.status(404).json({ error: 'Pack not found' });
+    if (!pack || !pack.isActive) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Pack not found');
 
     // Access check
     if (pack.tier !== 'free') {
@@ -96,29 +94,29 @@ async function playPack(req, res) {
           OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }],
         },
       });
-      if (!access) return res.status(403).json({ error: 'Pack not unlocked', tier: pack.tier });
+      if (!access) return sendError(res, 403, ERROR_CODES.ACCESS_DENIED, 'Pack not unlocked');
     }
 
     if (!Number.isInteger(pack.trackCount) || pack.trackCount < 1) {
       console.error(`Pack ${pack.slug} has invalid trackCount: ${pack.trackCount}`);
-      return res.status(500).json({ error: 'Pack configuration error' });
+      return sendError(res, 500, ERROR_CODES.CONFIG_ERROR, 'Pack configuration error');
     }
 
     // Fetch tracks from Spotify
     const playlistId = pack.playlistUrl.split('playlist/')[1]?.split('?')[0];
-    if (!playlistId) return res.status(500).json({ error: 'Invalid playlist URL in pack' });
+    if (!playlistId) return sendError(res, 500, ERROR_CODES.CONFIG_ERROR, 'Invalid playlist URL in pack');
 
     let accessToken = req.user.accessToken;
     if (!accessToken) {
       accessToken = await refreshAccessToken(req.user);
-      if (!accessToken) return res.status(500).json({ error: 'No valid Spotify token' });
+      if (!accessToken) return sendError(res, 500, ERROR_CODES.NO_SPOTIFY_TOKEN, 'No valid Spotify token');
     }
 
     const allTracks = await fetchPlaylistTracksOrdered({ accessToken, playlistId, limit: 100 });
-
     if (!allTracks.length) {
-      return res.status(500).json({ error: 'Pack playlist has no tracks' });
+      return sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Pack playlist has no tracks');
     }
+
     if (allTracks.length < pack.trackCount) {
       console.warn(`Pack ${pack.slug}: playlist has ${allTracks.length} tracks but trackCount is ${pack.trackCount}. Using all available.`);
     }
@@ -164,7 +162,7 @@ async function playPack(req, res) {
     });
   } catch (e) {
     console.error('playPack error:', e.message);
-    res.status(500).json({ error: 'Failed to start pack session' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to start pack session');
   }
 }
 
@@ -173,10 +171,10 @@ async function playPack(req, res) {
 // payment verification — placeholder for future Stripe integration).
 async function unlockPack(req, res) {
   try {
-    if (!isValidSlug(req.params.slug)) return res.status(400).json({ error: 'Invalid pack slug' });
+    if (!isValidSlug(req.params.slug)) return sendError(res, 400, ERROR_CODES.INVALID_SLUG, 'Invalid pack slug');
 
     const pack = await prisma.pack.findUnique({ where: { slug: req.params.slug } });
-    if (!pack || !pack.isActive) return res.status(404).json({ error: 'Pack not found' });
+    if (!pack || !pack.isActive) return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Pack not found');
 
     if (pack.tier === 'free') {
       // Free packs don't need a UserPack row — they're always accessible.
@@ -186,16 +184,10 @@ async function unlockPack(req, res) {
     // Premium: verify payment token from body (Stripe payment_intent, etc.)
     const { paymentToken } = req.body;
     if (!paymentToken) {
-      return res.status(402).json({
-        error: 'Payment required',
-        price: pack.price ? Number(pack.price) : null,
-        currency: pack.currency,
-      });
+      return sendError(res, 402, ERROR_CODES.PAYMENT_REQUIRED, 'Payment required');
     }
 
     // TODO: verify paymentToken with Stripe before creating UserPack
-    // const verified = await stripe.paymentIntents.retrieve(paymentToken);
-    // if (verified.status !== 'succeeded') return res.status(402).json({ error: 'Payment not completed' });
 
     const userPack = await prisma.userPack.upsert({
       where: { userId_packId: { userId: req.user.id, packId: pack.id } },
@@ -211,7 +203,7 @@ async function unlockPack(req, res) {
     res.json({ unlocked: true, source: userPack.source });
   } catch (e) {
     console.error('unlockPack error:', e.message);
-    res.status(500).json({ error: 'Failed to unlock pack' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to unlock pack');
   }
 }
 

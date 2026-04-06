@@ -1,23 +1,26 @@
 const prisma = require('../prisma/client');
 const { isValidId } = require('../utils/validate');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 // ---------- POST /api/game/save ----------
 async function saveGame(req, res) {
   try {
     const { gameId, totalTime, tracks } = req.body;
     if (!gameId || typeof totalTime !== 'number' || !Array.isArray(tracks)) {
-      return res.status(400).json({ error: 'Invalid payload' });
+      return sendError(res, 400, ERROR_CODES.INVALID_PAYLOAD, 'Invalid payload');
     }
 
-    if (!isValidId(gameId)) return res.status(400).json({ error: 'Invalid game ID' });
+    if (!isValidId(gameId)) {
+      return sendError(res, 400, ERROR_CODES.INVALID_ID, 'Invalid game ID');
+    }
 
     const game = await prisma.game.findUnique({ where: { id: gameId } });
     if (!game || game.userId !== req.user.id) {
-      return res.status(404).json({ error: 'Game not found' });
+      return sendError(res, 404, ERROR_CODES.NOT_FOUND, 'Game not found');
     }
 
     if (game.completed) {
-      return res.status(409).json({ error: 'Game already completed' });
+      return sendError(res, 409, ERROR_CODES.ALREADY_COMPLETED, 'Game already completed');
     }
 
     // Guardar detalle de tracks
@@ -43,7 +46,7 @@ async function saveGame(req, res) {
     res.json({ ok: true, gameId });
   } catch (e) {
     console.error('saveGame error:', e.message);
-    res.status(500).json({ error: 'Could not save game' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_SERVER_ERROR, 'Could not save game');
   }
 };
 

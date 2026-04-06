@@ -1,5 +1,7 @@
 const axios = require('axios');
 const { refreshAccessToken } = require('../services/spotify');
+const { isValidSearchQuery } = require('../utils/validate');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 async function getValidToken(user) {
   const token = user.accessToken || await refreshAccessToken(user);
@@ -15,13 +17,27 @@ async function getValidToken(user) {
 function handleSpotifyError(err, res) {
   const status = err.status || err.response?.status || 500;
   const message = err.response?.data?.error?.message || err.message || 'Spotify API error';
-  return res.status(status).json({ error: message });
+  return sendError(res, status, ERROR_CODES.SPOTIFY_ERROR, message);
 }
 
 // ── GET /api/spotify/search?q=&type=track&limit=5 ────────────────────────────
 async function searchSong(req, res) {
   const { q, type = 'track', limit = 5 } = req.query;
-  if (!q) return res.status(400).json({ error: 'Missing query param: q' });
+  if (!q) return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'Missing query param: q');
+
+  if (!isValidSearchQuery(q)) {
+    return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'Invalid search query: must be between 1 and 200 characters');
+  }
+
+  const ALLOWED_TYPES = ['track', 'artist', 'album', 'playlist'];
+  if (!ALLOWED_TYPES.includes(type)) {
+    return sendError(res, 400, ERROR_CODES.INVALID_QUERY, `Invalid type. Allowed values: ${ALLOWED_TYPES.join(', ')}`);
+  }
+
+  const parsedLimit = parseInt(limit, 10);
+  if (isNaN(parsedLimit) || parsedLimit < 1 || parsedLimit > 50) {
+    return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'limit must be an integer between 1 and 50');
+  }
 
   try {
     const accessToken = await getValidToken(req.user);
@@ -38,9 +54,16 @@ async function searchSong(req, res) {
 // ── PUT /api/spotify/play ────────────────────────────────────────────────────
 async function playSong(req, res) {
   const { device_id, uris, position_ms } = req.body;
-  if (!device_id) return res.status(400).json({ error: 'Missing body param: device_id' });
-  if (!Array.isArray(uris) || !uris.length) return res.status(400).json({ error: 'Missing body param: uris' });
- 
+  
+  if (!device_id) return sendError(res, 400, ERROR_CODES.INVALID_PAYLOAD, 'Missing body param: device_id');
+  if (!Array.isArray(uris) || !uris.length) return sendError(res, 400, ERROR_CODES.INVALID_PAYLOAD, 'Missing body param: uris');
+
+  const URI_REGEX  = /^spotify:track:[a-zA-Z0-9]{22}$/;
+  const invalidUri = uris.find((u) => !URI_REGEX.test(u));
+  if (invalidUri) {
+    return sendError(res, 400, ERROR_CODES.INVALID_PAYLOAD, `Invalid Spotify URI: ${invalidUri}`);
+  }
+
   try {
     const accessToken = await getValidToken(req.user);
     const body = { uris };

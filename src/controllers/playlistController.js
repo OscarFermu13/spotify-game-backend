@@ -1,19 +1,20 @@
 const axios = require('axios');
 const { refreshAccessToken } = require('../services/spotify');
 const { parsePlaylistId, fisherYatesShuffle } = require('../utils/helpers');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 // ---------- GET /api/playlist ----------
 async function getPlaylistTracks(req, res) {
   const { url, count = 5 } = req.query;
-  if (!url) return res.status(400).json({ error: 'Missing playlist url' });
+  if (!url) return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'Missing playlist url');
 
   const playlistId = parsePlaylistId(url);
-  if (!playlistId) return res.status(400).json({ error: 'Invalid playlist url' });
+  if (!playlistId) return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'Invalid playlist url');
 
   let accessToken = req.user.accessToken;
   if (!accessToken) {
     accessToken = await refreshAccessToken(req.user);
-    if (!accessToken) return res.status(401).json({ error: 'Could not refresh Spotify token' });
+    if (!accessToken) return sendError(res, 401, ERROR_CODES.UNAUTHORIZED, 'Could not refresh Spotify token');
   }
 
   try {
@@ -40,7 +41,7 @@ async function getPlaylistTracks(req, res) {
     res.json({ tracks: shuffled });
   } catch (e) {
     console.error('playlist fetch error', e.response?.data || e.message);
-    res.status(500).json({ error: 'Failed to fetch playlist tracks' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch playlist tracks');
   }
 }
 

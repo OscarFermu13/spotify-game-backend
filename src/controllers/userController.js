@@ -1,5 +1,6 @@
 const axios = require('axios');
 const { refreshAccessToken } = require('../services/spotify');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 
 // ── GET /api/me ──────────────────────────────────────────────────────────────
 async function getMe(req, res) {
@@ -23,7 +24,7 @@ async function getUserPlaylists(req, res) {
     res.json({ playlists: resp.data.items || [] });
   } catch (e) {
     console.error('playlists fetch error', e.response?.data || e.message);
-    res.status(500).json({ error: 'Failed to fetch user playlists' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch user playlists');
   }
 }
 
@@ -35,12 +36,12 @@ async function getAccessToken(req, res) {
       accessToken = await refreshAccessToken(req.user);
     }
     if (!accessToken) {
-      return res.status(500).json({ error: 'Could not obtain access token' });
+      sendError(res, 500, ERROR_CODES.CONFIG_ERROR, 'Could not obtain access token');
     }
     res.json({ accessToken });
   } catch (e) {
     console.error('token fetch error', e.response?.data || e.message);
-    res.status(500).json({ error: 'Cannot get access token' });
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Failed to fetch access token');
   }
 }
 

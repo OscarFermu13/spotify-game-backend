@@ -2,6 +2,7 @@ const axios = require('axios');
 const { makeJwt } = require('../utils/jwt');
 const { encrypt } = require('../utils/tokenCrypto');
 const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, FRONTEND_URL } = require('../config');
+const { sendError, ERROR_CODES } = require('../utils/errors');
 const prisma = require('../prisma/client');
 
 // ---------- GET /auth/login ----------
@@ -48,12 +49,12 @@ async function callback(req, res) {
 
   const storedState = req.cookies?.oauth_state;
   if (!returnedState || !storedState || returnedState !== storedState) {
-    return res.status(403).send('OAuth state mismatch. Possible CSRF attack.');
+    return sendError(res, 403, ERROR_CODES.INVALID_STATE, 'OAuth state mismatch. Possible CSRF attack.');
   }
 
   res.clearCookie('oauth_state');
 
-  if (!code) return res.status(400).send('No authorization code received');
+  if (!code) return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'No authorization code received');
 
   try {
     const tokenResp = await axios.post(
@@ -109,7 +110,7 @@ async function callback(req, res) {
     res.redirect(FRONTEND_URL);
   } catch (err) {
     console.error('Auth callback error:', err.response?.data || err.message);
-    res.status(500).send('Authentication error');
+    sendError(res, 500, ERROR_CODES.INTERNAL_ERROR, 'Authentication error');
   }
 };
 
