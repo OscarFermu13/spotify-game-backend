@@ -108,10 +108,22 @@ async function generateDailySession(user, date) {
     limit: 100,
   });
 
+  if (!allTracks.length) {
+    throw new Error(`Daily playlist ${playlistId} returned no tracks. Check DAILY_PLAYLIST_URL and token permissions.`);
+  }
+
   // Use the date as a seed to get a deterministic shuffle for the day.
   // Simple seeded shuffle: sort by hash of (trackId + dateStr).
   const dateStr = date.toISOString().slice(0, 10); // "YYYY-MM-DD"
   const seededTracks = seededFisherYates([...allTracks], dateStr);
+
+  if (allTracks.length < DAILY_TRACK_COUNT) {
+    console.warn(
+      `Daily playlist only has ${allTracks.length} tracks but DAILY_TRACK_COUNT is ${DAILY_TRACK_COUNT}. ` +
+      `Session will use all available tracks.`
+    );
+  }
+
   const selected = seededTracks.slice(0, DAILY_TRACK_COUNT);
 
   return prisma.gameSession.create({
