@@ -1,7 +1,7 @@
 const axios = require('axios');
 const { makeJwt } = require('../utils/jwt');
 const { encrypt } = require('../utils/tokenCrypto');
-const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, FRONTEND_URL } = require('../config');
+const { SPOTIFY_CLIENT_ID, SPOTIFY_CLIENT_SECRET, SPOTIFY_REDIRECT_URI, FRONTEND_URL, IS_PRODUCTION } = require('../config');
 const { sendError, ERROR_CODES } = require('../utils/errors');
 const prisma = require('../prisma/client');
 
@@ -20,11 +20,9 @@ async function login(req, res) {
 
   const state = require('crypto').randomBytes(16).toString('hex');
 
-  const isProduction = process.env.NODE_ENV === 'production';
-
   res.cookie('oauth_state', state, {
     httpOnly: true,
-    secure: isProduction,
+    secure: IS_PRODUCTION,
     sameSite: 'Lax',
     maxAge: 10 * 60 * 1000,
   });
@@ -98,12 +96,10 @@ async function callback(req, res) {
 
     const token = makeJwt({ userId: user.id, spotifyId });
 
-    const isProduction = process.env.NODE_ENV === 'production';
-
     res.cookie('jwt', token, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: isProduction ? 'none' : 'lax',
+      secure: IS_PRODUCTION,
+      sameSite: IS_PRODUCTION ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 días
     });
 

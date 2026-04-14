@@ -21,7 +21,7 @@ function makeApp() {
 
 describe('authMiddleware', () => {
   const user = makeUser();
-  const app  = makeApp();
+  const app = makeApp();
 
   describe('sin token', () => {
     it('devuelve 401 con code NO_TOKEN', async () => {
@@ -41,7 +41,7 @@ describe('authMiddleware', () => {
     });
 
     it('devuelve 401 con code INVALID_TOKEN para token con firma incorrecta', async () => {
-      const jwt        = require('jsonwebtoken');
+      const jwt = require('jsonwebtoken');
       const wrongToken = jwt.sign({ userId: user.id }, 'wrong-secret');
       const res = await request(app)
         .get('/protected')
@@ -51,7 +51,7 @@ describe('authMiddleware', () => {
     });
 
     it('devuelve 401 con code INVALID_TOKEN para token expirado', async () => {
-      const jwt          = require('jsonwebtoken');
+      const jwt = require('jsonwebtoken');
       const expiredToken = jwt.sign({ userId: user.id }, 'test-secret-for-jest', { expiresIn: '-1s' });
       const res = await request(app)
         .get('/protected')
@@ -83,7 +83,7 @@ describe('authMiddleware', () => {
     it('acepta el token por header Authorization', async () => {
       prismaMock.user.findUnique.mockResolvedValue(user);
       const token = makeJwt({ userId: user.id, spotifyId: user.spotifyId });
-      const res   = await request(app)
+      const res = await request(app)
         .get('/protected')
         .set('Authorization', `Bearer ${token}`);
       expect(res.status).toBe(200);
@@ -91,7 +91,7 @@ describe('authMiddleware', () => {
 
     it('NO acepta el token por query string', async () => {
       const token = makeJwt({ userId: user.id, spotifyId: user.spotifyId });
-      const res   = await request(app)
+      const res = await request(app)
         .get(`/protected?token=${token}`);
       expect(res.status).toBe(401);
       expect(res.body.code).toBe('NO_TOKEN');

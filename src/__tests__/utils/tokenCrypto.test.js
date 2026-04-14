@@ -11,7 +11,7 @@ describe('encrypt', () => {
 
   it('tiene el formato iv:authTag:encrypted', () => {
     const result = encrypt('my-secret-token');
-    const parts  = result.split(':');
+    const parts = result.split(':');
     expect(parts).toHaveLength(3);
     expect(parts[0].length).toBe(24);  // 12 bytes en hex
     expect(parts[1].length).toBe(32);  // 16 bytes en hex
@@ -35,7 +35,7 @@ describe('encrypt', () => {
 
 describe('decrypt', () => {
   it('recupera el valor original', () => {
-    const original  = 'my-secret-spotify-token';
+    const original = 'my-secret-spotify-token';
     const encrypted = encrypt(original);
     expect(decrypt(encrypted)).toBe(original);
   });
@@ -56,7 +56,7 @@ describe('decrypt', () => {
 
   it('lanza error si el ciphertext ha sido manipulado', () => {
     const encrypted = encrypt('original');
-    const parts     = encrypted.split(':');
+    const parts = encrypted.split(':');
     // Manipular el contenido cifrado
     parts[2] = 'ff'.repeat(parts[2].length / 2);
     expect(() => decrypt(parts.join(':'))).toThrow();

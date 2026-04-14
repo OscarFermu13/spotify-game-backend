@@ -39,13 +39,13 @@ describe('parsePlaylistId', () => {
 
 describe('fisherYatesShuffle', () => {
   it('devuelve un array de la misma longitud', () => {
-    const arr    = [1, 2, 3, 4, 5];
+    const arr = [1, 2, 3, 4, 5];
     const result = fisherYatesShuffle([...arr]);
     expect(result).toHaveLength(arr.length);
   });
 
   it('contiene los mismos elementos', () => {
-    const arr    = [1, 2, 3, 4, 5];
+    const arr = [1, 2, 3, 4, 5];
     const result = fisherYatesShuffle([...arr]);
     expect(result.sort((a, b) => a - b)).toEqual(arr);
   });

@@ -21,8 +21,8 @@ describe('mulberry32', () => {
   it('semillas distintas producen secuencias distintas', () => {
     const rand1 = mulberry32(1);
     const rand2 = mulberry32(2);
-    const seq1  = Array.from({ length: 10 }, () => rand1());
-    const seq2  = Array.from({ length: 10 }, () => rand2());
+    const seq1 = Array.from({ length: 10 }, () => rand1());
+    const seq2 = Array.from({ length: 10 }, () => rand2());
     expect(seq1).not.toEqual(seq2);
   });
 });
@@ -78,7 +78,7 @@ describe('seededFisherYates', () => {
     // seededFisherYates muta el array que recibe — el caller debe pasar una copia
     // Este test documenta que el contrato es pasar [...arr]
     const arr2 = [...original];
-    const copy  = [...arr2];
+    const copy = [...arr2];
     seededFisherYates(arr2, 'test');
     expect(arr2).not.toEqual(copy); // documenta que SÍ muta — el caller es responsable de copiar
   });

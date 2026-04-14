@@ -36,4 +36,5 @@ module.exports = {
   DAILY_PLAYLIST_URL: process.env.DAILY_PLAYLIST_URL,
   DAILY_TRACK_COUNT: parseInt(process.env.DAILY_TRACK_COUNT, 10) || 5,
   CRON_SECRET: process.env.CRON_SECRET,
+  IS_PRODUCTION: process.env.NODE_ENV === 'production',
 };
