@@ -3,6 +3,7 @@ const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const rateLimit = require('express-rate-limit');
 const { FRONTEND_URL } = require('./config');
+const { sendError, ERROR_CODES } = require('./utils/errors');
 
 const authRoutes = require('./routes/auth');
 const playlistRoutes = require('./routes/playlist');

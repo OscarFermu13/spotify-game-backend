@@ -54,22 +54,34 @@ async function refreshAccessToken(user) {
 }
 
 async function fetchPlaylistTracksOrdered({ accessToken, playlistId, limit = 100 }) {
-  const url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}`;
-  const resp = await axios.get(url, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  const items = resp.data.items || [];
-  return items
-    .map((i) => i.track)
-    .filter(Boolean)
-    .map((t) => ({
-      id: t.id,
-      name: t.name,
-      artists: t.artists.map((a) => a.name).join(', '),
-      uri: t.uri,
-      album: t.album,
-      duration_ms: t.duration_ms,
-    }));
+  const MAX_TRACKS = 500;
+  const allTracks = [];
+
+  let url = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=${limit}`;
+
+  while (url && allTracks.length < MAX_TRACKS) {
+    const resp = await axios.get(url, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+
+    const items = resp.data.items || [];
+    const tracks = items
+      .map((i) => i.track)
+      .filter(Boolean)
+      .map((t) => ({
+        id: t.id,
+        name: t.name,
+        artists: t.artists.map((a) => a.name).join(', '),
+        uri: t.uri,
+        album: t.album,
+        duration_ms: t.duration_ms,
+      }));
+
+    allTracks.push(...tracks);
+    url = resp.data.next;
+  }
+
+  return allTracks.slice(0, MAX_TRACKS);
 }
 
 module.exports = { refreshAccessToken, fetchPlaylistTracksOrdered };

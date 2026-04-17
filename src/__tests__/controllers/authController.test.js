@@ -29,6 +29,8 @@ function makeApp() {
     return app;
 }
 
+// ── GET /auth/login ────────────────────────────────────────
+
 describe('GET /auth/login', () => {
     const app = makeApp();
 
@@ -59,6 +61,8 @@ describe('GET /auth/login', () => {
         expect(res.headers.location).not.toContain('show_dialog');
     });
 });
+
+// ── GET /auth/callback ────────────────────────────────────────
 
 describe('GET /auth/callback', () => {
     const app = makeApp();
@@ -133,6 +137,8 @@ describe('GET /auth/callback', () => {
     });
 });
 
+// ── POST /auth/logout ────────────────────────────────────────
+
 describe('POST /auth/logout', () => {
     const app = makeApp();
 
@@ -147,7 +153,6 @@ describe('POST /auth/logout', () => {
         const cookies = res.headers['set-cookie'] || [];
         const jwtCookie = cookies.find((c) => c.startsWith('jwt='));
         expect(jwtCookie).toBeDefined();
-        // Una cookie limpiada tiene Max-Age=0 o Expires en el pasado
         expect(jwtCookie).toMatch(/Max-Age=0|Expires=.*1970/);
     });
 });

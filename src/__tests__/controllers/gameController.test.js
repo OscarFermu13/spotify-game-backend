@@ -16,6 +16,8 @@ function makeApp() {
     return app;
 }
 
+// ── POST /api/game/save ────────────────────────────────────────
+
 describe('POST /api/game/save', () => {
     const user = makeUser();
     const game = makeGame({ userId: user.id });
