@@ -1,0 +1,64 @@
+services:
+
+  # ── Base de datos PostgreSQL ─────────────────────────────────────────────
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: spotifyquiz
+      POSTGRES_PASSWORD: spotifyquiz
+      POSTGRES_DB: spotifyquiz
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U spotifyquiz -d spotifyquiz"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ── Migraciones ──────────────────────────────────────────────────────────
+  migrate:
+    build: .
+    command: npx prisma migrate deploy
+    environment:
+      DATABASE_URL: postgresql://spotifyquiz:spotifyquiz@db:5432/spotifyquiz
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
+  # ── API ──────────────────────────────────────────────────────────────────
+  api:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "${PORT:-4000}:4000"
+    environment:
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgresql://spotifyquiz:spotifyquiz@db:5432/spotifyquiz
+
+      SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
+      SPOTIFY_CLIENT_SECRET: ${SPOTIFY_CLIENT_SECRET}
+      SPOTIFY_REDIRECT_URI: ${SPOTIFY_REDIRECT_URI}
+      JWT_SECRET: ${JWT_SECRET}
+      TOKEN_ENCRYPTION_KEY: ${TOKEN_ENCRYPTION_KEY}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:5173}
+      DAILY_PLAYLIST_URL: ${DAILY_PLAYLIST_URL}
+      DAILY_TRACK_COUNT: ${DAILY_TRACK_COUNT:-5}
+      CRON_SECRET: ${CRON_SECRET}
+
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+    volumes:
+      - ./src:/app/src
+    command: npx nodemon src/server.js
+
+volumes:
+  postgres_data:
