@@ -23,7 +23,7 @@ async function login(req, res) {
   res.cookie('oauth_state', state, {
     httpOnly: true,
     secure: IS_PRODUCTION,
-    sameSite: 'Lax',
+    sameSite: IS_PRODUCTION ? 'none' : 'lax',  // ← igual que el JWT
     maxAge: 10 * 60 * 1000,
   });
 
@@ -50,7 +50,11 @@ async function callback(req, res) {
     return sendError(res, 403, ERROR_CODES.INVALID_STATE, 'OAuth state mismatch. Possible CSRF attack.');
   }
 
-  res.clearCookie('oauth_state');
+  res.clearCookie('oauth_state', {
+    httpOnly: true,
+    secure: IS_PRODUCTION,
+    sameSite: IS_PRODUCTION ? 'none' : 'lax',
+  });
 
   if (!code) return sendError(res, 400, ERROR_CODES.INVALID_QUERY, 'No authorization code received');
 
